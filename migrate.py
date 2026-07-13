@@ -11,12 +11,12 @@ import models  # noqa: F401
 
 
 async def create_tables():
-    print("🔧 Creating database tables...")
+    print("[HireMate] Creating database tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    print("✅ Tables created successfully!")
-    print("   → users")
-    print("   → candidates")
+    print("[HireMate] Tables created successfully!")
+    print("   -> users")
+    print("   -> candidates")
 
 
 if __name__ == "__main__":
