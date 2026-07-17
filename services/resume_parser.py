@@ -9,7 +9,18 @@ import re
 import logging
 from typing import Optional
 
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+    has_fitz = True
+except ImportError:
+    has_fitz = False
+
+try:
+    import pypdf
+    has_pypdf = True
+except ImportError:
+    has_pypdf = False
+
 from docx import Document
 from openai import OpenAI
 
@@ -21,13 +32,34 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    """Extract all text from a PDF file using PyMuPDF."""
-    doc = fitz.open(stream=file_bytes, filetype="pdf")
-    text_parts = []
-    for page in doc:
-        text_parts.append(page.get_text("text"))
-    doc.close()
-    return "\n".join(text_parts).strip()
+    """Extract all text from a PDF file using PyMuPDF (fast) or pypdf (pure-python fallback)."""
+    if has_fitz:
+        try:
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            text_parts = []
+            for page in doc:
+                text_parts.append(page.get_text("text"))
+            doc.close()
+            return "\n".join(text_parts).strip()
+        except Exception as e:
+            logger.warning(f"PyMuPDF failed to extract PDF, trying pypdf: {e}")
+
+    if has_pypdf:
+        try:
+            import io
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            text_parts = []
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    text_parts.append(text)
+            return "\n".join(text_parts).strip()
+        except Exception as e:
+            logger.error(f"pypdf failed to extract PDF: {e}")
+            raise RuntimeError(f"Could not extract text from PDF: {e}")
+
+    raise RuntimeError("No PDF text extraction library (PyMuPDF or pypdf) is available.")
+
 
 
 def extract_text_from_docx(file_bytes: bytes) -> str:
