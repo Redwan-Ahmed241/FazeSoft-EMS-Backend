@@ -1,2 +1,24 @@
+# Environment
 .env
-__pycache__
+.env.example
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Build / deploy
+dist/
+build/
+.vercel/

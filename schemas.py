@@ -18,6 +18,14 @@ class UserCreate(BaseModel):
     full_name: Optional[str] = None
 
 
+class EmployeeCreate(BaseModel):
+    """Payload for creating an employee login account (used by HR/Admin)."""
+    email: EmailStr
+    password: str = Field(min_length=6, description="Minimum 6 characters")
+    full_name: Optional[str] = None
+    job_title: Optional[str] = None
+
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
