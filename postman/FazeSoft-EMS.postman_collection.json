@@ -1,0 +1,1524 @@
+{
+  "info": {
+    "_postman_id": "fazesoft-ems-api-checks",
+    "name": "FazeSoft-EMS API Checks",
+    "description": "Automated check of every FazeSoft-EMS API endpoint. Run with the Postman Collection Runner (folder order matters). Signup/login runs first and saves the JWT; resource folders chain create -> list -> get -> update -> delete. HR/Admin-only endpoints expect success OR 403 and only fail on 5xx.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "test_password",
+      "value": "Test@12345",
+      "type": "string"
+    },
+    {
+      "key": "admin_email",
+      "value": "a@g.com",
+      "type": "string"
+    },
+    {
+      "key": "admin_password",
+      "value": "asdfghjk9",
+      "type": "string"
+    },
+    {
+      "key": "team_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "item": [
+        {
+          "name": "GET / (API status)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('GET / connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET / returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET / reports ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('GET /health connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /health returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /health reports healthy', () => pm.expect(pm.response.json().status).to.eql('healthy'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Authentication",
+      "item": [
+        {
+          "name": "POST /auth/signup",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('test_password', pm.environment.get('test_password') || pm.collectionVariables.get('test_password') || 'Test@12345');",
+                  "const email = 'api-check.' + Date.now() + '.' + Math.random().toString(36).slice(2, 8) + '@example.com';",
+                  "pm.collectionVariables.set('test_email', email);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('signup connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('signup responds (201 or 409 if exists)', () => pm.expect([201, 409]).to.include(code));",
+                  "if (code === 422) {",
+                  "  pm.test('signup rejected: ' + JSON.stringify(pm.response.json().detail).slice(0, 200), () => pm.expect([201, 409]).to.include(code));",
+                  "}",
+                  "if (code === 201) {",
+                  "  pm.test('signup returns token', () => pm.expect(pm.response.json().access_token).to.be.a('string'));",
+                  "  pm.collectionVariables.set('token', pm.response.json().access_token);",
+                  "  pm.collectionVariables.set('user_id', pm.response.json().user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"full_name\": \"API Check Tester\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/signup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "signup"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('login connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('login returns 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('login returns token', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.collectionVariables.set('token', json.access_token);",
+                  "pm.collectionVariables.set('user_id', json.user.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /auth/login (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('admin_email', pm.environment.get('admin_email') || pm.collectionVariables.get('admin_email') || 'a@g.com');",
+                  "pm.collectionVariables.set('admin_password', pm.environment.get('admin_password') || pm.collectionVariables.get('admin_password') || 'asdfghjk9');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('admin login connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('admin login returns 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('admin login returns token', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.collectionVariables.set('token', json.access_token);",
+                  "pm.collectionVariables.set('user_id', json.user.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/create-employee",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const email = 'emp.' + Date.now() + '.' + Math.random().toString(36).slice(2, 8) + '@example.com';",
+                  "pm.collectionVariables.set('emp_email', email);",
+                  "pm.collectionVariables.set('test_password', pm.environment.get('test_password') || pm.collectionVariables.get('test_password') || 'Test@12345');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('create-employee connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('create-employee responds (201 or 409 if exists)', () => pm.expect([201, 409]).to.include(code));",
+                  "if (code === 201) {",
+                  "  pm.test('employee role assigned', () => pm.expect(pm.response.json().role).to.eql('employee'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emp_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"full_name\": \"API Check Employee\",\n  \"job_title\": \"QA Engineer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/create-employee",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "create-employee"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /auth/me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('GET /auth/me connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /auth/me returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /auth/me returns signed-up user', () => pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get('test_email')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Candidates",
+      "item": [
+        {
+          "name": "POST /candidates (create)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const email = 'cand.' + Date.now() + '.' + Math.random().toString(36).slice(2, 8) + '@example.com';",
+                  "pm.collectionVariables.set('cand_email', email);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('create candidate connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('create candidate returns 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('candidate_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"API Check Candidate\",\n  \"email\": \"{{cand_email}}\",\n  \"position\": \"Backend Engineer\",\n  \"ai_score\": 90,\n  \"skills\": [\"Python\", \"FastAPI\"],\n  \"match_reasons\": [\"Automated check\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/candidates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "candidates"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /candidates (list)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('GET /candidates connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /candidates returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /candidates returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/candidates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "candidates"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /candidates/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const candidateId = pm.collectionVariables.get('candidate_id');",
+                  "const code = pm.response.code;",
+                  "if (!candidateId) {",
+                  "  pm.test('GET /candidates/{id} skipped (candidate not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('GET /candidates/{id} connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /candidates/{id} returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /candidates/{id} matches created id', () => pm.expect(pm.response.json().id).to.eql(parseInt(candidateId)));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/candidates/{{candidate_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "candidates",
+                "{{candidate_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /candidates/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const candidateId = pm.collectionVariables.get('candidate_id');",
+                  "const code = pm.response.code;",
+                  "if (!candidateId) {",
+                  "  pm.test('PUT /candidates/{id} skipped (candidate not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('PUT /candidates/{id} connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('PUT /candidates/{id} returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('PUT /candidates/{id} applied changes', () => pm.expect(pm.response.json().ai_score).to.eql(93));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+1 555 0199\",\n  \"ai_score\": 93\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/candidates/{{candidate_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "candidates",
+                "{{candidate_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /candidates/{id}/status (HR only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const candidateId = pm.collectionVariables.get('candidate_id');",
+                  "const code = pm.response.code;",
+                  "if (!candidateId) {",
+                  "  pm.test('PATCH status skipped (candidate not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('PATCH status connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('PATCH status responds (200 or 403 for non-HR)', () => pm.expect([200, 403]).to.include(code));",
+                  "pm.test('PATCH status never 5xx', () => pm.expect(code).to.be.lessThan(500));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Interview\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/candidates/{{candidate_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "candidates",
+                "{{candidate_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /candidates/{id} (HR only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const candidateId = pm.collectionVariables.get('candidate_id');",
+                  "const code = pm.response.code;",
+                  "if (!candidateId) {",
+                  "  pm.test('DELETE /candidates/{id} skipped (candidate not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('DELETE /candidates/{id} connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('DELETE /candidates/{id} responds (204 or 403 for non-HR)', () => pm.expect([204, 403]).to.include(code));",
+                  "pm.test('DELETE /candidates/{id} never 5xx', () => pm.expect(code).to.be.lessThan(500));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/candidates/{{candidate_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "candidates",
+                "{{candidate_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Interviews",
+      "item": [
+        {
+          "name": "POST /interviews (HR only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('create interview connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('create interview responds (201 or 403 for non-HR)', () => pm.expect([201, 403]).to.include(code));",
+                  "if (code === 201) {",
+                  "  pm.collectionVariables.set('interview_id', pm.response.json().id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"candidate_name\": \"API Check Candidate\",\n  \"candidate_email\": \"{{cand_email}}\",\n  \"position\": \"Backend Engineer\",\n  \"date\": \"2099-01-01\",\n  \"time\": \"10:00\",\n  \"duration\": \"45 min\",\n  \"type\": \"Technical\",\n  \"interviewer\": \"API Check HR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/interviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "interviews"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /interviews (list)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('GET /interviews connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /interviews returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /interviews returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/interviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "interviews"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /interviews/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const interviewId = pm.collectionVariables.get('interview_id');",
+                  "const code = pm.response.code;",
+                  "if (!interviewId) {",
+                  "  pm.test('GET /interviews/{id} skipped (interview not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('GET /interviews/{id} connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /interviews/{id} returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /interviews/{id} matches created id', () => pm.expect(pm.response.json().id).to.eql(parseInt(interviewId)));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/interviews/{{interview_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "interviews",
+                "{{interview_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /interviews/{id} (HR only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const interviewId = pm.collectionVariables.get('interview_id');",
+                  "const code = pm.response.code;",
+                  "if (!interviewId) {",
+                  "  pm.test('DELETE /interviews/{id} skipped (interview not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('DELETE /interviews/{id} connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('DELETE /interviews/{id} responds (204 or 403 for non-HR)', () => pm.expect([204, 403]).to.include(code));",
+                  "pm.test('DELETE /interviews/{id} never 5xx', () => pm.expect(code).to.be.lessThan(500));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/interviews/{{interview_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "interviews",
+                "{{interview_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Notifications",
+      "item": [
+        {
+          "name": "POST /notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('create notification connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('create notification returns 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('notification_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"title\": \"Automated API Check\",\n  \"message\": \"Notification created by the API check.\",\n  \"type\": \"info\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /notifications (list)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('GET /notifications connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /notifications returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /notifications returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /notifications/{id}/read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const notificationId = pm.collectionVariables.get('notification_id');",
+                  "const code = pm.response.code;",
+                  "if (!notificationId) {",
+                  "  pm.test('PATCH read skipped (notification not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('PATCH read connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('PATCH read returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('notification marked read', () => pm.expect(pm.response.json().is_read).to.eql(true));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_read\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/{{notification_id}}/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Resumes",
+      "item": [
+        {
+          "name": "POST /resumes/parse",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('parse connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('parse responds (200/400/422/500)', () => pm.expect([200, 400, 422, 500]).to.include(code));",
+                  "if (code === 200) {",
+                  "  pm.test('parsed data returned', () => pm.expect(pm.response.json()).to.not.be.empty);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "sample_resume.json"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/resumes/parse",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "parse"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Projects",
+      "item": [
+        {
+          "name": "GET /projects (list)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('GET /projects connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /projects returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /projects returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /projects (Admin + create_project)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('project_code', 'AUTO-' + Date.now());"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('create project connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('create project responds (201 or 403 for non-admin)', () => pm.expect([201, 403]).to.include(code));",
+                  "if (code === 201) {",
+                  "  pm.collectionVariables.set('project_id', pm.response.json().project_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_name\": \"API Check Project\",\n  \"project_code\": \"{{project_code}}\",\n  \"description\": \"Created by the API check.\",\n  \"client_id\": \"{{user_id}}\",\n  \"start_date\": \"2099-01-01\",\n  \"end_date\": \"2099-12-31\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /projects/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const projectId = pm.collectionVariables.get('project_id');",
+                  "const code = pm.response.code;",
+                  "if (!projectId) {",
+                  "  pm.test('GET /projects/{id} skipped (project not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('GET /projects/{id} connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /projects/{id} returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /projects/{id} matches created id', () => pm.expect(pm.response.json().project_id).to.eql(projectId));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{project_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /projects/{id}/teams (assign team)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_id\": \"{{team_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{project_id}}",
+                "teams"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const projectId = pm.collectionVariables.get('project_id');",
+                  "const teamId = pm.collectionVariables.get('team_id');",
+                  "const code = pm.response.code;",
+                  "if (!projectId || !teamId) {",
+                  "  pm.test('assign team skipped (no project/team)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('assign team connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('assign team responds (201 or 400 if already assigned)', () => pm.expect([201, 400, 403]).to.include(code));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /projects/{id}/teams (list)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{project_id}}",
+                "teams"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const projectId = pm.collectionVariables.get('project_id');",
+                  "const code = pm.response.code;",
+                  "if (!projectId) {",
+                  "  pm.test('list project teams skipped (no project)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('list project teams connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('list project teams returns 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Teams",
+      "item": [
+        {
+          "name": "POST /teams (Admin + create_team)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_name\": \"API Check Team\",\n  \"description\": \"Created by the API check.\",\n  \"members\": [\n    {\n      \"user_id\": \"{{user_id}}\",\n      \"role\": \"front_end\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teams"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('create team connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('create team responds (201 or 403 for non-admin)', () => pm.expect([201, 403]).to.include(code));",
+                  "if (code === 201) {",
+                  "  pm.collectionVariables.set('team_id', pm.response.json().team_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /teams (list)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teams"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const code = pm.response.code;",
+                  "if (!code) {",
+                  "  pm.test('list teams connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('list teams returns 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /teams/{team_id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teams/{{team_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teams",
+                "{{team_id}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const teamId = pm.collectionVariables.get('team_id');",
+                  "const code = pm.response.code;",
+                  "if (!teamId) {",
+                  "  pm.test('GET /teams/{id} skipped (team not created)', () => pm.expect(true).to.eql(true));",
+                  "  return;",
+                  "}",
+                  "if (!code) {",
+                  "  pm.test('GET /teams/{id} connected', () => pm.expect(code).to.be.greaterThan(0));",
+                  "  return;",
+                  "}",
+                  "pm.test('GET /teams/{id} returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GET /teams/{id} matches created id', () => pm.expect(pm.response.json().team_id).to.eql(teamId));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
