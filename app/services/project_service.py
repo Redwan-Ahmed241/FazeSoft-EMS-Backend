@@ -111,3 +111,37 @@ class ProjectService:
                 detail=f"Project with id={project_id} not found.",
             )
         return project
+
+    @staticmethod
+    async def update_project(
+        db: AsyncSession,
+        project_id: UUID,
+        payload: ProjectCreate,
+        current_user: User,
+    ) -> Project:
+        project = await ProjectService.get_project_by_id(db, project_id)
+
+        if payload.project_code != project.project_code:
+            existing = await db.execute(
+                select(Project).where(
+                    Project.project_code == payload.project_code,
+                    Project.project_id != project_id,
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Project with code '{payload.project_code}' already exists.",
+                )
+            project.project_code = payload.project_code
+
+        project.project_name = payload.project_name
+        project.description = payload.description
+        project.status = ProjectService._resolve_status(payload)
+        project.client_id = payload.client_id
+        project.start_date = payload.start_date
+        project.end_date = payload.end_date
+
+        await db.commit()
+        await db.refresh(project)
+        return project
