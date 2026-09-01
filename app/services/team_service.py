@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.project import Project
+from app.models.project import Project, ProjectStatus
 from app.models.team import Team, TeamMember, ProjectTeam
 from app.models.user import User
 from app.schemas.team import (
@@ -115,11 +115,43 @@ class TeamService:
                 detail=f"Team {team_id} is already assigned to project {project_id}.",
             )
 
-        link = ProjectTeam(project_id=project_id, team_id=team_id)
+        from datetime import datetime, timezone
+
+        # A project with an assigned team is considered "In Progress".
+        if project.status != ProjectStatus.InProgress:
+            project.status = ProjectStatus.InProgress
+
+        link = ProjectTeam(
+            project_id=project_id,
+            team_id=team_id,
+            assigned_at=datetime.now(timezone.utc),
+        )
         db.add(link)
         await db.commit()
-        await db.refresh(link)
         return ProjectTeamsOut.model_validate(link)
+
+    @staticmethod
+    async def delete_team(
+        db: AsyncSession,
+        team_id: UUID,
+    ) -> None:
+        team = await db.get(Team, team_id)
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Team with id={team_id} not found.",
+            )
+
+        # Remove project-team links first: there is no ORM relationship from Team to
+        # ProjectTeam, so relying on a DB cascade here will fail the FK constraint.
+        from app.models.team import ProjectTeam
+
+        await db.execute(
+            ProjectTeam.__table__.delete().where(ProjectTeam.team_id == team_id)
+        )
+
+        await db.delete(team)
+        await db.commit()
 
     @staticmethod
     async def get_teams_by_project(

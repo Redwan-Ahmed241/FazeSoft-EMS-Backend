@@ -76,6 +76,17 @@ async def get_team(
     return await TeamService.get_team_by_id(team_id, db)
 
 
+@team_router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_team(
+    team_id: UUID,
+    current_user: User = Depends(require_permission("create_team")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a team (also removes its project links and members)."""
+    await TeamService.delete_team(db, team_id)
+    return None
+
+
 @project_team_router.post("/{project_id}/teams", response_model=ProjectTeamsOut, status_code=status.HTTP_201_CREATED)
 async def assign_team_to_project(
     project_id: UUID,

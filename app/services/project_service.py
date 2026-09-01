@@ -15,21 +15,6 @@ from app.schemas.project import ProjectCreate
 
 class ProjectService:
     @staticmethod
-    def _resolve_status(payload: ProjectCreate) -> ProjectStatus:
-        """Auto-set status: 'In Progress' when all fields are filled, else 'Planned'."""
-        required_fields = [
-            payload.project_name,
-            payload.project_code,
-            payload.description,
-            payload.client_id,
-            payload.start_date,
-            payload.end_date,
-        ]
-        if all(field is not None for field in required_fields):
-            return ProjectStatus.InProgress
-        return ProjectStatus.Planned
-
-    @staticmethod
     async def create_project(
         db: AsyncSession,
         payload: ProjectCreate,
@@ -48,7 +33,9 @@ class ProjectService:
             project_name=payload.project_name,
             project_code=payload.project_code,
             description=payload.description,
-            status=ProjectService._resolve_status(payload),
+            # A new project starts as "Planned"; it moves to "In Progress" once a
+            # team is assigned to it (see TeamService.assign_team_to_project).
+            status=ProjectStatus.Planned,
             manager_id=current_user.id,
             client_id=payload.client_id,
             start_date=payload.start_date,
@@ -65,6 +52,28 @@ class ProjectService:
             select(Project).order_by(Project.created_at.desc())
         )
         return list(result.scalars().all())
+
+    @staticmethod
+    async def delete_project(
+        db: AsyncSession,
+        project_id: UUID,
+    ) -> None:
+        project = await db.get(Project, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with id={project_id} not found.",
+            )
+
+        # Remove project-team links first (DB-level cascade is unreliable here).
+        from app.models.team import ProjectTeam
+
+        await db.execute(
+            ProjectTeam.__table__.delete().where(ProjectTeam.project_id == project_id)
+        )
+
+        await db.delete(project)
+        await db.commit()
 
     @staticmethod
     async def get_project_by_id(db: AsyncSession, project_id: UUID) -> Project:

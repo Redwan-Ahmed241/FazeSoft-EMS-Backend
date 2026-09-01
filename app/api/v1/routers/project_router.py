@@ -42,6 +42,17 @@ async def list_projects(
     return [ProjectListOut.model_validate(p) for p in projects]
 
 
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(
+    project_id: UUID,
+    current_user: User = Depends(require_project_creator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a project (also removes its project-team links)."""
+    await ProjectService.delete_project(db, project_id)
+    return None
+
+
 @router.get("/{project_id}", response_model=ProjectOut)
 async def get_project(
     project_id: UUID,
