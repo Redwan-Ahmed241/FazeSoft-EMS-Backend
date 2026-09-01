@@ -22,7 +22,8 @@ router = APIRouter(
 require_client_creator = require_role_and_permission("admin", "create_client")
 
 
-@router.post("/", response_model=ClientOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ClientOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ClientOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def create_client(
     payload: ClientCreate,
     current_user: User = Depends(require_client_creator),
@@ -32,7 +33,8 @@ async def create_client(
     return await ClientService.create_client(db, payload)
 
 
-@router.get("/", response_model=List[ClientOut])
+@router.get("", response_model=List[ClientOut])
+@router.get("/", response_model=List[ClientOut], include_in_schema=False)
 async def list_clients(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

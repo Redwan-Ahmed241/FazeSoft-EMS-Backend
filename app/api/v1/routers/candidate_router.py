@@ -18,7 +18,8 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[CandidateOut])
+@router.get("", response_model=List[CandidateOut])
+@router.get("/", response_model=List[CandidateOut], include_in_schema=False)
 async def list_candidates(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -27,7 +28,8 @@ async def list_candidates(
     return await CandidateService.list_candidates(db, current_user)
 
 
-@router.post("/", response_model=CandidateOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CandidateOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CandidateOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def create_candidate(
     payload: CandidateCreate,
     current_user: User = Depends(get_current_user),

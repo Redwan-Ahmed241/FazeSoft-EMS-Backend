@@ -18,7 +18,8 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[NotificationOut])
+@router.get("", response_model=List[NotificationOut])
+@router.get("/", response_model=List[NotificationOut], include_in_schema=False)
 async def list_notifications(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -38,7 +39,8 @@ async def mark_notification_as_read(
     return await NotificationService.mark_as_read(db, notification_id, payload, current_user)
 
 
-@router.post("/", response_model=NotificationOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=NotificationOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=NotificationOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def create_notification(
     payload: NotificationCreate,
     current_user: User = Depends(get_current_user),

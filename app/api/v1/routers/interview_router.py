@@ -18,7 +18,8 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[InterviewOut])
+@router.get("", response_model=List[InterviewOut])
+@router.get("/", response_model=List[InterviewOut], include_in_schema=False)
 async def list_interviews(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -27,7 +28,8 @@ async def list_interviews(
     return await InterviewService.list_interviews(db, current_user)
 
 
-@router.post("/", response_model=InterviewOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=InterviewOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=InterviewOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def create_interview(
     payload: InterviewCreate,
     current_user: User = Depends(get_current_user),
