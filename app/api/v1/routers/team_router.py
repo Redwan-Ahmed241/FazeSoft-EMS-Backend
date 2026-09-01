@@ -31,7 +31,7 @@ def require_permission(permission_name: str):
     ) -> User:
         result = await db.execute(
             select(Permission.perm_desc)
-            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .join(RolePermission, RolePermission.perm_id == Permission.id)
             .join(Role, Role.id == RolePermission.role_id)
             .join(UserRole, UserRole.role_id == Role.id)
             .where(

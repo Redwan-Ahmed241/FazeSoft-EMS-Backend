@@ -125,7 +125,7 @@ def require_role_and_permission(role_name: str, permission_name: str):
 
         perm_result = await db.execute(
             select(Permission.perm_desc)
-            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .join(RolePermission, RolePermission.perm_id == Permission.id)
             .join(Role, Role.id == RolePermission.role_id)
             .join(UserRole, UserRole.role_id == Role.id)
             .where(

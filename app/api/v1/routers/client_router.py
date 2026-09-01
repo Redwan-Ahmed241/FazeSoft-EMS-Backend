@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_role_and_permission
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.client import ClientCreate, ClientOut
@@ -19,14 +19,16 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
+require_client_creator = require_role_and_permission("admin", "create_client")
+
 
 @router.post("/", response_model=ClientOut, status_code=status.HTTP_201_CREATED)
 async def create_client(
     payload: ClientCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_client_creator),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new client."""
+    """Create a new client. Restricted to Admin users with create_client permission."""
     return await ClientService.create_client(db, payload)
 
 

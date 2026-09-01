@@ -34,9 +34,12 @@ async def create_employee(payload: EmployeeCreate, db: AsyncSession = Depends(ge
 
 
 @router.get("/me", response_model=UserOut)
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Return the currently authenticated user."""
-    return UserOut.model_validate(current_user)
+    return await AuthService.get_me(db, current_user)
 
 
 @router.get("/users", response_model=List[UserOut])

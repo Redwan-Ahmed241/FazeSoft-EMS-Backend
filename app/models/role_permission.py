@@ -52,7 +52,7 @@ class RolePermission(Base):
     role_id = Column(
         UUID(as_uuid=True), ForeignKey("role.id", ondelete="CASCADE"), primary_key=True
     )
-    permission_id = Column(
+    perm_id = Column(
         UUID(as_uuid=True), ForeignKey("permission.id", ondelete="CASCADE"), primary_key=True
     )
 
