@@ -16,6 +16,15 @@ class ProjectCreate(BaseModel):
     end_date: date
 
 
+class ProjectUpdate(BaseModel):
+    project_name: Optional[str] = None
+    project_code: Optional[str] = None
+    description: Optional[str] = None
+    client_id: Optional[UUID] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+
+
 class ProjectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

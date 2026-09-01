@@ -131,6 +131,43 @@ class TeamService:
         return ProjectTeamsOut.model_validate(link)
 
     @staticmethod
+    async def add_members_to_team(
+        team_id: UUID,
+        members: list,
+        db: AsyncSession,
+    ) -> TeamWithMembersOut:
+        team = await db.get(Team, team_id)
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Team with id={team_id} not found.",
+            )
+
+        existing_result = await db.execute(
+            select(TeamMember.user_id).where(TeamMember.team_id == team_id)
+        )
+        existing_ids = set(existing_result.scalars().all())
+
+        added = 0
+        for member in members:
+            if member.user_id in existing_ids:
+                continue
+            db.add(
+                TeamMember(
+                    team_id=team_id,
+                    user_id=member.user_id,
+                    role=member.role,
+                )
+            )
+            existing_ids.add(member.user_id)
+            added += 1
+
+        await db.commit()
+        if added == 0:
+            await db.rollback()
+        return await TeamService.get_team_by_id(team_id, db)
+
+    @staticmethod
     async def delete_team(
         db: AsyncSession,
         team_id: UUID,

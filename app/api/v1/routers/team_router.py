@@ -16,6 +16,7 @@ from app.schemas.team import (
     ProjectTeamAssign,
     ProjectTeamsOut,
     TeamCreate,
+    TeamMemberInput,
     TeamWithMembersOut,
 )
 from app.services.team_service import TeamService
@@ -74,6 +75,17 @@ async def get_team(
     db: AsyncSession = Depends(get_db),
 ):
     return await TeamService.get_team_by_id(team_id, db)
+
+
+@team_router.post("/{team_id}/members", response_model=TeamWithMembersOut, status_code=status.HTTP_201_CREATED)
+async def add_team_members(
+    team_id: UUID,
+    payload: List[TeamMemberInput],
+    current_user: User = Depends(require_permission("create_team")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add members to an existing team."""
+    return await TeamService.add_members_to_team(team_id, payload, db)
 
 
 @team_router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)

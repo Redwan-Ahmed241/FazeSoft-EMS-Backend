@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import Project, ProjectStatus
 from app.models.user import User
-from app.schemas.project import ProjectCreate
+from app.schemas.project import ProjectCreate, ProjectUpdate
 
 
 class ProjectService:
@@ -42,6 +42,29 @@ class ProjectService:
             end_date=payload.end_date,
         )
         db.add(project)
+        await db.commit()
+        await db.refresh(project)
+        return project
+
+    @staticmethod
+    async def update_project(
+        db: AsyncSession,
+        project_id: UUID,
+        payload: ProjectUpdate,
+    ) -> Project:
+        result = await db.execute(
+            select(Project).where(Project.project_id == project_id)
+        )
+        project = result.scalar_one_or_none()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with id={project_id} not found.",
+            )
+
+        updates = payload.model_dump(exclude_unset=True)
+        for field, value in updates.items():
+            setattr(project, field, value)
         await db.commit()
         await db.refresh(project)
         return project
