@@ -4,6 +4,7 @@ app/models/__init__.py — Package exports for SQLAlchemy models.
 from app.core.database import Base
 from app.models.user import User
 from app.models.candidate import Candidate, CandidateStatus
+from app.models.client import Client
 from app.models.interview import Interview
 from app.models.notification import Notification
 from app.models.project import Project, ProjectStatus
@@ -15,6 +16,7 @@ __all__ = [
     "User",
     "Candidate",
     "CandidateStatus",
+    "Client",
     "Interview",
     "Notification",
     "Project",

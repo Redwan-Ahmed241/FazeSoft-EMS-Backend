@@ -12,6 +12,7 @@ from app.api.v1 import api_v1_router
 from app.api.v1.routers import (
     auth_router,
     candidate_router,
+    client_router,
     interview_router,
     notification_router,
     resume_router,
@@ -53,6 +54,7 @@ app.include_router(project_team_router, prefix="/api/v1")
 # Backward compatibility routes (/api/auth, /api/candidates, etc.)
 app.include_router(auth_router, prefix="/api")
 app.include_router(candidate_router, prefix="/api")
+app.include_router(client_router, prefix="/api")
 app.include_router(interview_router, prefix="/api")
 app.include_router(notification_router, prefix="/api")
 app.include_router(resume_router, prefix="/api")

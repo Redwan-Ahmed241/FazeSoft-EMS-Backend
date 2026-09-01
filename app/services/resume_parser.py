@@ -164,19 +164,34 @@ def parse_resume_with_llm(raw_text: str, api_key: str) -> dict:
         base_url="https://api.groq.com/openai/v1",
     )
 
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Resume text to parse:\n\n{raw_text}"},
-            ],
-            temperature=0.1,
-            max_tokens=4096,
-        )
-    except Exception as e:
-        logger.error(f"Groq API error: {e}", exc_info=True)
-        raise RuntimeError(f"Groq API call failed: {str(e)}")
+    # Models supported on this Groq account/tier: qwen/qwen3.8-27b, openai/gpt-oss-120b, groq/compound, etc.
+    models_to_try = [
+        "qwen/qwen3.8-27b",
+        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
+        "groq/compound"
+    ]
+
+    last_err = None
+    for model_name in models_to_try:
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Resume text to parse:\n\n{raw_text}"},
+                ],
+                temperature=0.1,
+                max_tokens=4096,
+            )
+            break
+        except Exception as e:
+            last_err = e
+            logger.warning(f"Groq model {model_name} failed: {e}. Trying fallback...")
+            continue
+    else:
+        logger.error(f"All Groq models failed: {last_err}", exc_info=True)
+        raise RuntimeError(f"Groq API call failed: {str(last_err)}")
 
     response_text = response.choices[0].message.content.strip()
 

@@ -10,6 +10,8 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, UserOut, Token, EmployeeCreate
 from app.services.auth_service import AuthService
 
+from typing import List
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
@@ -35,3 +37,12 @@ async def create_employee(payload: EmployeeCreate, db: AsyncSession = Depends(ge
 async def get_me(current_user: User = Depends(get_current_user)):
     """Return the currently authenticated user."""
     return UserOut.model_validate(current_user)
+
+
+@router.get("/users", response_model=List[UserOut])
+async def list_users(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all registered users (for team member assignment)."""
+    return await AuthService.get_all_users(db)

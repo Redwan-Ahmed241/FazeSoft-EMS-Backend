@@ -80,3 +80,12 @@ class AuthService:
         await db.refresh(user)
 
         return UserOut.model_validate(user)
+
+    @staticmethod
+    async def get_all_users(db: AsyncSession) -> list[UserOut]:
+        result = await db.execute(
+            select(User)
+            .where(User.deleted_at.is_(None), User.banned_until.is_(None))
+            .order_by(User.created_at.desc())
+        )
+        return [UserOut.model_validate(u) for u in result.scalars().all()]
