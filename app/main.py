@@ -38,6 +38,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS + [settings.FRONTEND_URL],
+    allow_origin_regex=r"^https?://([a-zA-Z0-9-]+\.)*(fazesoft\.com|vercel\.app)(:[0-9]+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
