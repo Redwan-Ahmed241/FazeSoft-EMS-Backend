@@ -164,7 +164,7 @@ def _send_smtp_sync(
             server.sendmail(from_email, [to_email], msg.as_string())
 
 
-def _send_resend_api_sync(api_key: str, from_email: str, from_name: str, to_email: str, subject: str, body_html: str) -> None:
+def _send_resend_api_sync(api_key: str, from_email: str, from_name: str, to_email: str, subject: str, body_html: str) -> dict:
     """Send via Resend HTTP REST API."""
     url = "https://api.resend.com/emails"
     headers = {
@@ -179,9 +179,20 @@ def _send_resend_api_sync(api_key: str, from_email: str, from_name: str, to_emai
         "html": body_html,
     }
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        if resp.status not in (200, 201):
-            raise RuntimeError(f"Resend API returned status {resp.status}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp_data = resp.read().decode("utf-8")
+            return json.loads(resp_data) if resp_data else {"id": "accepted"}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8")
+        try:
+            error_json = json.loads(error_body)
+            error_msg = error_json.get("message") or error_json.get("error") or error_body
+        except Exception:
+            error_msg = error_body
+        raise RuntimeError(f"Resend API returned {e.code}: {error_msg}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Resend network connection error: {e.reason}") from e
 
 
 class EmailService:
@@ -202,27 +213,37 @@ class EmailService:
 
         # 1. Try Resend API if key is present
         if settings.RESEND_API_KEY:
+            resend_from_email = settings.RESEND_FROM_EMAIL or "onboarding@resend.dev"
             try:
-                await asyncio.to_thread(
+                result = await asyncio.to_thread(
                     _send_resend_api_sync,
                     settings.RESEND_API_KEY,
-                    from_email,
+                    resend_from_email,
                     from_name,
                     request.to_email,
                     request.subject,
                     html_content,
                 )
-                logger.info("Email delivered via Resend API to %s", request.to_email)
+                email_id = result.get("id", "accepted") if isinstance(result, dict) else "accepted"
+                logger.info("Email delivered via Resend API to %s (ID: %s)", request.to_email, email_id)
                 return EmailSendResponse(
                     success=True,
                     status="sent",
-                    message=f"Email successfully delivered to {request.to_email}",
+                    message=f"Email successfully delivered to {request.to_email} via Resend (ID: {email_id})",
                     provider="resend",
                     recipient=request.to_email,
                 )
             except Exception as e:
                 logger.error("Resend API send failed: %s", e)
-                # Fall through to SMTP check if configured
+                # If SMTP is not explicitly configured, return the exact Resend error
+                if not settings.SMTP_HOST:
+                    return EmailSendResponse(
+                        success=False,
+                        status="resend_error",
+                        message=str(e),
+                        provider="resend",
+                        recipient=request.to_email,
+                    )
 
         # 2. Try SMTP if host is present
         if settings.SMTP_HOST:
