@@ -23,3 +23,7 @@ dist/
 build/
 .vercel/
 
+# Postman & testing scripts
+postman/
+scripts/generate_postman.py
+scripts/run_api_tests.py

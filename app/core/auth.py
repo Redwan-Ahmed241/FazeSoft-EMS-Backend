@@ -19,6 +19,7 @@ ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 bearer_scheme = HTTPBearer()
+optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -93,6 +94,26 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+):
+    """Optionally validate Bearer token if provided, returning User or None without throwing 401."""
+    if not credentials:
+        return None
+    try:
+        from app.models.user import User
+        payload = decode_token(credentials.credentials)
+        user_id: str = payload.get("sub")
+        if not user_id:
+            return None
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        return user if (user and user.is_active) else None
+    except Exception:
+        return None
 
 
 # ─────────────────────────────────────────────────────────────
