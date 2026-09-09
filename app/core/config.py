@@ -30,6 +30,8 @@ class Settings(BaseSettings):
         "http://localhost:3001",
         "https://faze-soft-ems.vercel.app",
         "https://faze-soft-ems-backend.vercel.app",
+        "https://fazesoft.com",
+        "https://www.fazesoft.com",
     ]
 
     model_config = SettingsConfigDict(
