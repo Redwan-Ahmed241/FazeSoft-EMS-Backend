@@ -19,7 +19,7 @@ async def _resolve_rbac_role(db: AsyncSession, user_id) -> str:
         .where(UserRole.user_id == user_id)
     )
     role = result.scalars().first()
-    return (role or "candidate").lower()
+    return role or "Candidate"
 
 
 def _user_out(user: User, role: str) -> UserOut:
@@ -45,7 +45,7 @@ class AuthService:
             email=payload.email,
             encrypted_password=get_password_hash(payload.password),
             raw_user_meta_data={"full_name": payload.full_name},
-            raw_app_meta_data={"role": "candidate"},
+            raw_app_meta_data={"role": "Candidate"},
         )
         db.add(user)
         await db.commit()
@@ -94,7 +94,7 @@ class AuthService:
                 "full_name": payload.full_name,
                 "job_title": payload.job_title,
             },
-            raw_app_meta_data={"role": "employee"},
+            raw_app_meta_data={"role": "Intern"},
         )
         db.add(user)
         await db.commit()

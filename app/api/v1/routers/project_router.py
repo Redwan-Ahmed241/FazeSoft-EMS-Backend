@@ -19,7 +19,7 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
-require_project_creator = require_role_and_permission("admin", "create_project")
+require_project_creator = require_role_and_permission("CTO", "create_project")
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)

@@ -31,7 +31,7 @@ async def update_schema():
         print("Updating users table columns...")
         await conn.execute(text("""
             ALTER TABLE public.users 
-            ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'candidate',
+            ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'Candidate',
             ADD COLUMN IF NOT EXISTS phone text,
             ADD COLUMN IF NOT EXISTS location text,
             ADD COLUMN IF NOT EXISTS job_title text,
@@ -86,7 +86,7 @@ async def update_schema():
         print("Creating policies on interviews...")
         await conn.execute(text("""
             CREATE POLICY "HR full access" ON public.interviews FOR ALL
-            USING (public.get_my_role() = 'hr');
+            USING (public.get_my_role() IN ('HR', 'HR_Manager', 'CTO', 'Head_of_Operations'));
         """))
         await conn.execute(text("""
             CREATE POLICY "Candidate reads own" ON public.interviews FOR SELECT

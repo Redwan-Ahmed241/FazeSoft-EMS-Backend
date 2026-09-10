@@ -144,7 +144,7 @@ async def update_task(
     Update an existing task in a project.
     Allowed if user has 'update_task' permission, is admin/hr, OR is the assignee of the task.
     """
-    is_privileged = (current_user.role in ("admin", "hr"))
+    is_privileged = (current_user.role in ("cto", "hr", "hr_manager", "head_of_operations", "senior_frontend", "senior_backend"))
 
     if not is_privileged:
         perm_res = await db.execute(

@@ -19,7 +19,7 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
-require_client_creator = require_role_and_permission("admin", "create_client")
+require_client_creator = require_role_and_permission("CTO", "create_client")
 
 
 @router.post("", response_model=ClientOut, status_code=status.HTTP_201_CREATED)
