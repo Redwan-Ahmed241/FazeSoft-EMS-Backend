@@ -84,7 +84,7 @@ Body:
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
     "full_name": "John Doe",
-    "role": "employee",
+    "role": "Intern",
     "phone": null,
     "location": null,
     "job_title": null,
@@ -123,7 +123,7 @@ Body:
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
     "full_name": "John Doe",
-    "role": "employee",
+    "role": "Intern",
     "phone": "+1234567890",
     "location": "New York",
     "job_title": "Software Engineer",
@@ -192,7 +192,7 @@ Authorization: Bearer <token>
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "email": "user@example.com",
   "full_name": "John Doe",
-  "role": "hr",
+  "role": "HR",
   "phone": "+1234567890",
   "location": "New York",
   "job_title": "HR Manager",
@@ -920,13 +920,24 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 📊 Role-Based Access Control (RBAC)
+## Role-Based Access Control (RBAC)
 
 | Role | Permissions |
 |------|-------------|
-| `admin` | Full access to all endpoints |
-| `hr` | Full access to candidates, interviews, notifications |
-| `employee` | Can view/edit own profile, view own interviews |
+| `CTO` | Full access to all endpoints |
+| `Head_of_Operations` | Project management, candidates, interviews, reports, user management |
+| `HR` | Candidates, interviews, reports, user management |
+| `HR_Manager` | Full HR access + role management, employee management |
+| `Senior_Frontend` | Projects, tasks, teams |
+| `Senior_Backend` | Projects, tasks, teams |
+| `Junior_Frontend` | Projects, tasks |
+| `Junior_Backend` | Projects, tasks |
+| `DBA` | Projects, tasks, system settings |
+| `DBA_Intern` | Projects, tasks (read-only) |
+| `Frontend_Intern` | Projects, tasks (read-only) |
+| `Backend_Intern` | Projects, tasks (read-only) |
+| `Intern` | Projects, tasks (read-only) |
+| `Candidate` | View jobs only |
 
 ---
 

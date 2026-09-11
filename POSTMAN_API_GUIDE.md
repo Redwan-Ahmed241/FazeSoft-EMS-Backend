@@ -162,7 +162,7 @@ pm.environment.set("token", json.access_token);
   "id": "6a9b2c3d-1e4f-5a6b-7c8d-9e0f1a2b3c4d",
   "email": "hradmin@example.com",
   "full_name": "HR Admin",
-  "role": "employee",
+  "role": "Intern",
   "phone": null,
   "location": null,
   "job_title": "HR Manager",
@@ -225,7 +225,7 @@ pm.environment.set("token", json.access_token);
 ```
 
 ### 8. POST `{{base_url}}/api/v1/candidates`
-**Auth:** ✅ Bearer *(HR/admin see all; candidates may create only their own record)*
+**Auth:** ✅ Bearer *(CTO/HR/HR_Manager/Head_of_Operations may create; candidates may create only their own record)*
 
 **Body (raw JSON):**
 ```json
@@ -315,7 +315,7 @@ pm.environment.set("token", json.access_token);
 ```
 
 ### 11. PATCH `{{base_url}}/api/v1/candidates/{candidate_id}/status`
-**Auth:** ✅ Bearer *(HR/admin only)* — e.g. `/api/v1/candidates/1/status`
+**Auth:** ✅ Bearer *(CTO/HR/HR_Manager/Head_of_Operations only)* — e.g. `/api/v1/candidates/1/status`
 
 **Body (raw JSON):**
 ```json
@@ -336,7 +336,7 @@ pm.environment.set("token", json.access_token);
 ```
 
 ### 12. DELETE `{{base_url}}/api/v1/candidates/{candidate_id}`
-**Auth:** ✅ Bearer *(HR/admin only)* — e.g. `/api/v1/candidates/1`
+**Auth:** ✅ Bearer *(CTO/HR/HR_Manager/Head_of_Operations only)* — e.g. `/api/v1/candidates/1`
 
 **Response 204:** No Content
 
@@ -345,7 +345,7 @@ pm.environment.set("token", json.access_token);
 ## 📅 Interviews
 
 ### 13. GET `{{base_url}}/api/v1/interviews`
-**Auth:** ✅ Bearer *(HR/admin see all; candidates see their own by email)*
+**Auth:** ✅ Bearer *(CTO/HR/HR_Manager/Head_of_Operations see all; candidates see their own by email)*
 
 **Response 200 (array of InterviewOut):**
 ```json
@@ -368,7 +368,7 @@ pm.environment.set("token", json.access_token);
 ```
 
 ### 14. POST `{{base_url}}/api/v1/interviews`
-**Auth:** ✅ Bearer *(HR/admin only)*
+**Auth:** ✅ Bearer *(CTO/HR/HR_Manager/Head_of_Operations only)*
 
 **Body (raw JSON):**
 ```json
@@ -433,7 +433,7 @@ pm.environment.set("token", json.access_token);
 ```
 
 ### 16. DELETE `{{base_url}}/api/v1/interviews/{interview_id}`
-**Auth:** ✅ Bearer *(HR/admin only)* — e.g. `/api/v1/interviews/1`
+**Auth:** ✅ Bearer *(CTO/HR/HR_Manager/Head_of_Operations only)* — e.g. `/api/v1/interviews/1`
 
 **Response 204:** No Content
 
@@ -565,7 +565,7 @@ pm.environment.set("token", json.access_token);
 
 ## 📦 Projects
 
-> **Roles:** Create requires role **`Admin`** AND permission **`create_project`** (via `user_role` + `role_permission` junction tables). List/Get require any authenticated user.
+> **Roles:** Create requires role **`CTO`** AND permission **`create_project`** (via `user_role` + `role_permission` junction tables). List/Get require any authenticated user.
 
 ### 21. GET `{{base_url}}/api/v1/projects`
 **Auth:** ✅ Bearer

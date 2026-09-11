@@ -14,7 +14,7 @@ from app.schemas.candidate import CandidateCreate, CandidateUpdate, CandidateSta
 class CandidateService:
     @staticmethod
     async def list_candidates(db: AsyncSession, current_user: User) -> List[Candidate]:
-        if current_user.role in ("hr", "admin"):
+        if current_user.role in ("cto", "hr", "hr_manager", "head_of_operations"):
             result = await db.execute(
                 select(Candidate).order_by(Candidate.applied_date.desc(), Candidate.id.desc())
             )
@@ -27,7 +27,7 @@ class CandidateService:
 
     @staticmethod
     async def create_candidate(db: AsyncSession, payload: CandidateCreate, current_user: User) -> Candidate:
-        if current_user.role not in ("hr", "admin") and payload.email != current_user.email:
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations") and payload.email != current_user.email:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. Candidates can only create their own records.",
@@ -72,7 +72,7 @@ class CandidateService:
                 detail=f"Candidate with id={candidate_id} not found.",
             )
 
-        if current_user.role not in ("hr", "admin") and candidate.email != current_user.email:
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations") and candidate.email != current_user.email:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. You can only view your own candidate profile.",
@@ -92,7 +92,7 @@ class CandidateService:
                 detail=f"Candidate with id={candidate_id} not found.",
             )
 
-        if current_user.role not in ("hr", "admin") and candidate.email != current_user.email:
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations") and candidate.email != current_user.email:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. You can only update your own candidate profile.",
@@ -110,7 +110,7 @@ class CandidateService:
     async def update_candidate_status(
         db: AsyncSession, candidate_id: int, payload: CandidateStatusUpdate, current_user: User
     ) -> Candidate:
-        if current_user.role not in ("hr", "admin"):
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. Only HR users can update pipeline statuses.",
@@ -139,7 +139,7 @@ class CandidateService:
 
     @staticmethod
     async def delete_candidate(db: AsyncSession, candidate_id: int, current_user: User) -> None:
-        if current_user.role not in ("hr", "admin"):
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. Only HR users can delete candidates.",

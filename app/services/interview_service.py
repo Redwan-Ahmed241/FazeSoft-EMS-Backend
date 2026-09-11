@@ -14,7 +14,7 @@ from app.schemas.interview import InterviewCreate
 class InterviewService:
     @staticmethod
     async def list_interviews(db: AsyncSession, current_user: User) -> List[Interview]:
-        if current_user.role in ("hr", "admin"):
+        if current_user.role in ("cto", "hr", "hr_manager", "head_of_operations"):
             result = await db.execute(select(Interview).order_by(Interview.date.asc()))
             return list(result.scalars().all())
         else:
@@ -27,7 +27,7 @@ class InterviewService:
 
     @staticmethod
     async def create_interview(db: AsyncSession, payload: InterviewCreate, current_user: User) -> Interview:
-        if current_user.role not in ("hr", "admin"):
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. Only HR users can schedule interviews.",
@@ -61,7 +61,7 @@ class InterviewService:
                 detail=f"Interview with id={interview_id} not found.",
             )
 
-        if current_user.role not in ("hr", "admin") and interview.candidate_email != current_user.email:
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations") and interview.candidate_email != current_user.email:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. You can only view your own interviews.",
@@ -70,7 +70,7 @@ class InterviewService:
 
     @staticmethod
     async def delete_interview(db: AsyncSession, interview_id: int, current_user: User) -> None:
-        if current_user.role not in ("hr", "admin"):
+        if current_user.role not in ("cto", "hr", "hr_manager", "head_of_operations"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. Only HR users can cancel interviews.",

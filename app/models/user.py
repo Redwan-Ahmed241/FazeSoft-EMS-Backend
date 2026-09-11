@@ -60,7 +60,7 @@ class User(Base):
 
     @property
     def role(self) -> str:
-        return (self.raw_app_meta_data or {}).get("role") or "candidate"
+        return (self.raw_app_meta_data or {}).get("role") or "Candidate"
 
     @property
     def is_active(self) -> bool:

@@ -13,6 +13,7 @@ from app.api.v1.routers import (
     auth_router,
     candidate_router,
     client_router,
+    email_router,
     interview_router,
     notification_router,
     resume_router,
@@ -37,6 +38,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS + [settings.FRONTEND_URL],
+    allow_origin_regex=r"^https?://([a-zA-Z0-9-]+\.)*(fazesoft\.com|vercel\.app)(:[0-9]+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -60,6 +62,7 @@ app.include_router(project_team_router, prefix="/api")
 app.include_router(task_router, prefix="/api")
 app.include_router(candidate_router, prefix="/api")
 app.include_router(client_router, prefix="/api")
+app.include_router(email_router, prefix="/api")
 app.include_router(interview_router, prefix="/api")
 app.include_router(notification_router, prefix="/api")
 app.include_router(resume_router, prefix="/api")
