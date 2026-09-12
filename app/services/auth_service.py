@@ -1,6 +1,7 @@
 """
 app/services/auth_service.py — Business logic for authentication & user management.
 """
+from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -11,21 +12,27 @@ from app.schemas.user import UserCreate, UserLogin, UserOut, Token, EmployeeCrea
 from app.core.auth import get_password_hash, verify_password, create_access_token
 
 
-async def _resolve_rbac_role(db: AsyncSession, user_id) -> str:
+async def _resolve_rbac_role(db: AsyncSession, user_id) -> tuple[str, Optional[str], Optional[str]]:
     """Look up the user's role from the user_role → role tables."""
     result = await db.execute(
-        select(Role.role_desc)
+        select(Role.name, Role.role_desc)
         .join(UserRole, UserRole.role_id == Role.id)
         .where(UserRole.user_id == user_id)
     )
-    role = result.scalars().first()
-    return role or "Candidate"
+    row = result.first()
+    if row:
+        name, desc = row
+        return (name or desc or "Candidate", name, desc)
+    return ("Candidate", "Candidate", "Candidate")
 
 
-def _user_out(user: User, role: str) -> UserOut:
+def _user_out(user: User, role_info: tuple[str, Optional[str], Optional[str]]) -> UserOut:
     """Build a UserOut with the RBAC-resolved role."""
+    role_str, role_name, role_desc = role_info
     data = UserOut.model_validate(user)
-    data.role = role
+    data.role = role_str
+    data.role_name = role_name
+    data.role_desc = role_desc
     return data
 
 
@@ -45,7 +52,7 @@ class AuthService:
             email=payload.email,
             encrypted_password=get_password_hash(payload.password),
             raw_user_meta_data={"full_name": payload.full_name},
-            raw_app_meta_data={"role": "Candidate"},
+            raw_app_meta_data={},
         )
         db.add(user)
         await db.commit()

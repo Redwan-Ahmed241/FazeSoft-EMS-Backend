@@ -36,7 +36,7 @@ class ProjectService:
             # A new project starts as "Planned"; it moves to "In Progress" once a
             # team is assigned to it (see TeamService.assign_team_to_project).
             status=ProjectStatus.Planned,
-            manager_id=current_user.id,
+            manager_id=payload.manager_id or current_user.id,
             client_id=payload.client_id,
             start_date=payload.start_date,
             end_date=payload.end_date,
@@ -45,6 +45,25 @@ class ProjectService:
         await db.commit()
         await db.refresh(project)
         return project
+
+    @staticmethod
+    async def get_eligible_managers(db: AsyncSession) -> list[User]:
+        """Return users with CTO or Head_of_Operations roles who are eligible to be project managers."""
+        from app.models.role_permission import Role, UserRole
+        result = await db.execute(
+            select(User)
+            .join(UserRole, UserRole.user_id == User.id)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(
+                User.deleted_at.is_(None),
+                User.banned_until.is_(None),
+                (Role.name.in_(["CTO", "Head_of_Operations"])) |
+                (Role.role_desc.in_(["Chief Technology Officer", "Head of Operations"]))
+            )
+            .distinct()
+            .order_by(User.created_at.desc())
+        )
+        return list(result.scalars().all())
 
     @staticmethod
     async def update_project(

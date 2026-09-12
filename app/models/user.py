@@ -36,7 +36,8 @@ class User(Base):
 
     @property
     def full_name(self) -> Optional[str]:
-        return (self.raw_user_meta_data or {}).get("full_name")
+        meta = self.raw_user_meta_data or {}
+        return meta.get("full_name") or meta.get("name")
 
     @property
     def phone(self) -> Optional[str]:

@@ -11,7 +11,9 @@ from app.core.auth import get_current_user, require_role_and_permission
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectOut, ProjectListOut, ProjectUpdate
+from app.schemas.user import UserOut
 from app.services.project_service import ProjectService
+from app.services.auth_service import AuthService
 
 router = APIRouter(
     prefix="/projects",
@@ -20,6 +22,19 @@ router = APIRouter(
 )
 
 require_project_creator = require_role_and_permission("CTO", "create_project")
+
+
+@router.get("/managers", response_model=List[UserOut])
+async def list_project_managers(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all users who can be assigned as project managers (CTOs and Head of Operations)."""
+    managers = await ProjectService.get_eligible_managers(db)
+    out = []
+    for m in managers:
+        out.append(await AuthService.get_me(db, m))
+    return out
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)

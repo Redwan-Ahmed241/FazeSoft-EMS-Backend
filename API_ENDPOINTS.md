@@ -8,6 +8,21 @@
 
 ---
 
+## 📑 Quick Navigation
+- [🏠 Health Check](#-health-check)
+- [🔐 Authentication](#-authentication)
+- [👥 Candidates](#-candidates)
+- [📅 Interviews](#-interviews)
+- [🔔 Notifications](#-notifications)
+- [📁 Projects](#-projects)
+- [👥 Teams](#-teams)
+- [📋 Tasks](#-tasks)
+- [🏢 Clients](#-clients)
+- [✉️ Emails](#️-emails)
+- [📄 Resumes](#-resumes)
+- [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
+- [Common Error Responses](#-common-error-responses)
+
 ## 🏠 Health Check
 
 | Method | Endpoint | Auth Required | Description |
@@ -58,6 +73,7 @@ Content-Type: application/json
 | `POST` | `/api/auth/login` | ❌ | Login with credentials |
 | `POST` | `/api/auth/create-employee` | ❌ | Create employee login account |
 | `GET` | `/api/auth/me` | ✅ | Get current authenticated user |
+| `GET` | `/api/auth/users` | ✅ | List all registered users (for team member assignment) |
 
 ---
 
@@ -202,6 +218,40 @@ Authorization: Bearer <token>
   "created_at": "2026-08-10T12:00:00"
 }
 ```
+
+---
+
+### GET /api/auth/users
+**Request**
+```
+GET http://localhost:8000/api/auth/users
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "role": "CTO",
+    "role_name": "CTO",
+    "role_desc": "Chief Technology Officer",
+    "phone": "+1234567890",
+    "location": "New York",
+    "job_title": "CTO",
+    "bio": "Leading engineering",
+    "avatar": "https://example.com/avatar.jpg",
+    "is_active": true,
+    "created_at": "2026-08-10T12:00:00"
+  }
+]
+```
+
+**Errors:**
+- `401` — Missing or invalid token
 
 ---
 
@@ -649,11 +699,42 @@ Body:
 
 | Method | Endpoint | Auth Required | Role/Permission Required | Description |
 |--------|----------|---------------|--------------------------|-------------|
-| `POST` | `/api/v1/projects` | ✅ | Admin + `create_project` | Create a new project |
+| `POST` | `/api/v1/projects` | ✅ | CTO/Head_of_Operations + `create_project` | Create a new project |
 | `GET` | `/api/v1/projects` | ✅ | Any | List all projects |
+| `GET` | `/api/v1/projects/managers` | ✅ | Any | List eligible project managers (CTO & Head of Operations) |
 | `GET` | `/api/v1/projects/{project_id}` | ✅ | Any | Get project details |
-| `POST` | `/api/v1/projects/{project_id}/teams` | ✅ | Admin + `create_project` | Assign a team to a project |
+| `PUT` | `/api/v1/projects/{project_id}` | ✅ | CTO/Head_of_Operations + `create_project` | Update project details |
+| `DELETE` | `/api/v1/projects/{project_id}` | ✅ | CTO/Head_of_Operations + `create_project` | Delete a project |
+| `POST` | `/api/v1/projects/{project_id}/teams` | ✅ | CTO/Head_of_Operations + `create_project` | Assign a team to a project |
 | `GET` | `/api/v1/projects/{project_id}/teams` | ✅ | Any | List teams assigned to a project |
+
+---
+
+### GET /api/v1/projects/managers
+**Request**
+```
+GET http://localhost:8000/api/v1/projects/managers
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+```json
+[
+  {
+    "user_id": "a9f0d7b2-1ca1-4fc2-8057-a9464afed2c2",
+    "email": "cto@example.com",
+    "full_name": "Jane Doe",
+    "roles": [
+      {
+        "role_id": "330e8400-e29b-41d4-a716-446655440001",
+        "name": "CTO",
+        "role_desc": "Chief Technology Officer"
+      }
+    ]
+  }
+]
+```
 
 ---
 
@@ -670,6 +751,7 @@ Body:
   "project_code": "FZ-001",
   "description": "Enterprise Management System",
   "client_id": "550e8400-e29b-41d4-a716-446655440000",
+  "manager_id": "a9f0d7b2-1ca1-4fc2-8057-a9464afed2c2",
   "start_date": "2026-08-01",
   "end_date": "2026-12-31"
 }
@@ -733,6 +815,48 @@ Authorization: Bearer <token>
 **Response (200):** Full `ProjectOut` object (same shape as create response)
 
 **Errors:**
+- `404` — Project not found
+
+---
+
+### PUT /api/v1/projects/{project_id}
+**Request**
+```
+PUT http://localhost:8000/api/v1/projects/{project_id}
+Content-Type: application/json
+Authorization: Bearer <token>
+
+Body:
+{
+  "project_name": "FazeSoft EMS Updated",
+  "project_code": "FZ-001",
+  "description": "Updated enterprise management platform",
+  "status": "In Progress",
+  "start_date": "2026-08-01",
+  "end_date": "2026-12-31"
+}
+```
+
+**Response (200):** Full `ProjectOut` object with updated details.
+
+**Errors:**
+- `403` — Missing `create_project` permission
+- `404` — Project not found
+
+---
+
+### DELETE /api/v1/projects/{project_id}
+**Request**
+```
+DELETE http://localhost:8000/api/v1/projects/{project_id}
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (204):** No Content
+
+**Errors:**
+- `403` — Missing `create_project` permission
 - `404` — Project not found
 
 ---
@@ -807,6 +931,8 @@ Authorization: Bearer <token>
 | `POST` | `/api/v1/teams` | ✅ | Admin + `create_team` | Create a team with members |
 | `GET` | `/api/v1/teams` | ✅ | Any | List all teams |
 | `GET` | `/api/v1/teams/{team_id}` | ✅ | Any | Get team details with members |
+| `POST` | `/api/v1/teams/{team_id}/members` | ✅ | Admin + `create_team` | Add members to a team |
+| `DELETE` | `/api/v1/teams/{team_id}` | ✅ | Admin + `create_team` | Delete a team |
 
 > **Team Member Roles:** `front_end`, `back_end`
 
@@ -907,6 +1033,318 @@ Authorization: Bearer <token>
 
 **Errors:**
 - `404` — Team not found
+
+---
+
+### POST /api/v1/teams/{team_id}/members
+**Request**
+```
+POST http://localhost:8000/api/v1/teams/{team_id}/members
+Content-Type: application/json
+Authorization: Bearer <token>
+
+Body:
+[
+  {
+    "user_id": "550e8400-e29b-41d4-a716-446655440003",
+    "role": "front_end"
+  }
+]
+```
+
+**Response (201):** Updated `TeamWithMembersOut` object.
+
+**Errors:**
+- `403` — Missing `create_team` permission
+- `404` — Team not found
+
+---
+
+### DELETE /api/v1/teams/{team_id}
+**Request**
+```
+DELETE http://localhost:8000/api/v1/teams/{team_id}
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (204):** No Content
+
+**Errors:**
+- `403` — Missing `create_team` permission
+- `404` — Team not found
+
+---
+
+## 📋 Tasks
+
+| Method | Endpoint | Auth Required | Role/Permission Required | Description |
+|--------|----------|---------------|--------------------------|-------------|
+| `POST` | `/api/v1/projects/{project_id}/tasks` | ✅ | `assign_task` | Create and assign a new task |
+| `GET` | `/api/v1/projects/{project_id}/tasks` | ✅ | `view_tasks` | List all tasks for a project |
+| `GET` | `/api/v1/projects/{project_id}/tasks/{task_id}` | ✅ | `view_tasks` | Get single task details |
+| `PATCH` | `/api/v1/projects/{project_id}/tasks/{task_id}` | ✅ | `update_task` | Update task details / status |
+
+---
+
+### POST /api/v1/projects/{project_id}/tasks
+**Request**
+```
+POST http://localhost:8000/api/v1/projects/{project_id}/tasks
+Content-Type: application/json
+Authorization: Bearer <token>
+
+Body:
+{
+  "title": "Design Database Schema",
+  "description": "Create ER diagrams and schema definitions for task management",
+  "priority": "High",
+  "assigned_to": "550e8400-e29b-41d4-a716-446655440001",
+  "deadline": "2026-08-25"
+}
+```
+
+**Response (201):**
+```json
+{
+  "task_id": "550e8400-e29b-41d4-a716-446655440030",
+  "title": "Design Database Schema",
+  "description": "Create ER diagrams and schema definitions for task management",
+  "status": "Todo",
+  "priority": "High",
+  "project_id": "550e8400-e29b-41d4-a716-446655440010",
+  "assigned_to": "550e8400-e29b-41d4-a716-446655440001",
+  "assigned_by": "550e8400-e29b-41d4-a716-446655440000",
+  "deadline": "2026-08-25",
+  "created_at": "2026-08-10T11:00:00",
+  "updated_at": "2026-08-10T11:00:00"
+}
+```
+
+**Errors:**
+- `400` — Assignee is not an active team member of this project
+- `403` — Missing `assign_task` permission
+- `404` — Project not found
+
+---
+
+### GET /api/v1/projects/{project_id}/tasks
+**Request**
+```
+GET http://localhost:8000/api/v1/projects/{project_id}/tasks
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (200):** List of `TaskOut` objects ordered by created_at descending.
+
+**Errors:**
+- `403` — Missing `view_tasks` permission
+- `404` — Project not found
+
+---
+
+### GET /api/v1/projects/{project_id}/tasks/{task_id}
+**Request**
+```
+GET http://localhost:8000/api/v1/projects/{project_id}/tasks/{task_id}
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (200):** Single `TaskOut` object.
+
+**Errors:**
+- `403` — Missing `view_tasks` permission
+- `404` — Task not found
+
+---
+
+### PATCH /api/v1/projects/{project_id}/tasks/{task_id}
+**Request**
+```
+PATCH http://localhost:8000/api/v1/projects/{project_id}/tasks/{task_id}
+Content-Type: application/json
+Authorization: Bearer <token>
+
+Body:
+{
+  "status": "In Progress",
+  "priority": "High",
+  "deadline": "2026-08-30"
+}
+```
+
+**Response (200):** Updated `TaskOut` object.
+
+**Errors:**
+- `403` — Missing `update_task` permission
+- `404` — Task not found
+
+---
+
+## 🏢 Clients
+
+| Method | Endpoint | Auth Required | Role/Permission Required | Description |
+|--------|----------|---------------|--------------------------|-------------|
+| `POST` | `/api/v1/clients` | ✅ | Admin + `create_client` | Create a new client |
+| `GET` | `/api/v1/clients` | ✅ | Any | List all clients |
+| `GET` | `/api/v1/clients/{client_id}` | ✅ | Any | Get client details |
+
+---
+
+### POST /api/v1/clients
+**Request**
+```
+POST http://localhost:8000/api/v1/clients
+Content-Type: application/json
+Authorization: Bearer <token>
+
+Body:
+{
+  "company_name": "TechCorp Global",
+  "contact_person": "Jane Doe",
+  "contact_email": "jane.doe@techcorp.com",
+  "contact_phone": "+1 (555) 987-6543",
+  "country": "United States",
+  "industry": "Enterprise Software"
+}
+```
+
+**Response (201):**
+```json
+{
+  "client_id": "550e8400-e29b-41d4-a716-446655440040",
+  "company_name": "TechCorp Global",
+  "contact_person": "Jane Doe",
+  "contact_email": "jane.doe@techcorp.com",
+  "contact_phone": "+1 (555) 987-6543",
+  "country": "United States",
+  "industry": "Enterprise Software",
+  "status": "active",
+  "created_at": "2026-08-10T11:30:00"
+}
+```
+
+**Errors:**
+- `403` — Missing `create_client` permission
+- `409` — Client company name or email already exists
+
+---
+
+### GET /api/v1/clients
+**Request**
+```
+GET http://localhost:8000/api/v1/clients
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (200):** List of `ClientOut` objects ordered by creation date descending.
+
+---
+
+### GET /api/v1/clients/{client_id}
+**Request**
+```
+GET http://localhost:8000/api/v1/clients/{client_id}
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Response (200):** Single `ClientOut` object.
+
+**Errors:**
+- `404` — Client not found
+
+---
+
+## ✉️ Emails
+
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|---------------|-------------|
+| `POST` | `/api/v1/emails/send` | Optional | Send candidate email (Invite, Offer, Follow Up, Rejection) |
+
+---
+
+### POST /api/v1/emails/send
+**Request**
+```
+POST http://localhost:8000/api/v1/emails/send
+Content-Type: application/json
+Authorization: Bearer <token> (Optional)
+
+Body:
+{
+  "to_email": "candidate@example.com",
+  "candidate_name": "Alice Johnson",
+  "subject": "Invitation to Interview at FazeSoft",
+  "body": "Hi Alice, we would love to invite you for a technical discussion.",
+  "email_type": "interview_invitation",
+  "interview_date": "2026-08-20",
+  "interview_time": "11:00 AM",
+  "meeting_link": "https://meet.google.com/abc-defg-hij",
+  "position": "Frontend Developer"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Email sent successfully",
+  "recipient": "candidate@example.com",
+  "service": "smtp"
+}
+```
+
+---
+
+## 📄 Resumes
+
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|---------------|-------------|
+| `POST` | `/api/v1/resumes/parse` | ❌ | Upload PDF/DOCX resume and extract structured fields |
+
+---
+
+### POST /api/v1/resumes/parse
+**Request**
+```
+POST http://localhost:8000/api/v1/resumes/parse
+Content-Type: multipart/form-data
+
+Form Data:
+file: [binary PDF or DOCX file]
+```
+
+**Response (200):**
+```json
+{
+  "name": "Alexander Smith",
+  "email": "alex.smith@email.com",
+  "phone": "+1 (555) 123-4567",
+  "position": "Senior Frontend Developer",
+  "experience": "8 years",
+  "skills": ["React", "TypeScript", "Node.js", "Tailwind CSS"],
+  "education": [
+    {
+      "degree": "B.Sc. in Computer Science",
+      "school": "University of California, Berkeley",
+      "year": 2018
+    }
+  ],
+  "certifications": ["AWS Certified Solutions Architect"],
+  "match_reasons": [
+    "8+ years of experience matches senior requirements",
+    "Strong proficiency in modern frontend frameworks"
+  ]
+}
+```
+
+**Errors:**
+- `400` — Unsupported file format (must be `.pdf` or `.docx`)
+- `413` — File exceeds maximum allowed size (10 MB)
 
 ---
 

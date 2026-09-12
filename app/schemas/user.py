@@ -33,6 +33,8 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     role: str
+    role_name: Optional[str] = None
+    role_desc: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
     job_title: Optional[str] = None
