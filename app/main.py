@@ -22,6 +22,7 @@ from app.api.v1.routers import (
     project_team_router,
 )
 from app.api.v1.routers.task_router import task_router
+from app.api.v1.routers.submission_router import submission_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -54,12 +55,14 @@ app.include_router(api_v1_router, prefix="/api")
 app.include_router(team_router, prefix="/api/v1")
 app.include_router(project_team_router, prefix="/api/v1")
 app.include_router(task_router, prefix="/api/v1")
+app.include_router(submission_router, prefix="/api/v1")
 
 # Backward compatibility routes (/api/auth, /api/candidates, /api/teams, etc.)
 app.include_router(auth_router, prefix="/api")
 app.include_router(team_router, prefix="/api")
 app.include_router(project_team_router, prefix="/api")
 app.include_router(task_router, prefix="/api")
+app.include_router(submission_router, prefix="/api")
 app.include_router(candidate_router, prefix="/api")
 app.include_router(client_router, prefix="/api")
 app.include_router(email_router, prefix="/api")

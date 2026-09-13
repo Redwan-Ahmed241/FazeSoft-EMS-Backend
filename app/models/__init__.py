@@ -10,6 +10,8 @@ from app.models.notification import Notification
 from app.models.project import Project, ProjectStatus
 from app.models.role_permission import Role, Permission, RolePermission, UserRole
 from app.models.team import Team, TeamMember, TeamMemberRole, ProjectTeam
+from app.models.task import Task, TaskStatus, TaskPriority
+from app.models.submission import TaskSubmission
 
 __all__ = [
     "Base",
@@ -29,5 +31,9 @@ __all__ = [
     "TeamMember",
     "TeamMemberRole",
     "ProjectTeam",
+    "Task",
+    "TaskStatus",
+    "TaskPriority",
+    "TaskSubmission",
 ]
 

@@ -81,6 +81,20 @@ async def delete_project(
     return None
 
 
+@router.get("/mine", response_model=List[ProjectOut])
+@router.get("/mine/", response_model=List[ProjectOut], include_in_schema=False)
+async def get_my_projects(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return projects where the current user is a team member
+    (via team_member + project_teams) or manager_id === current_user.id.
+    """
+    projects = await ProjectService.get_my_projects(current_user, db)
+    return [ProjectOut.model_validate(p) for p in projects]
+
+
 @router.get("/{project_id}", response_model=ProjectOut)
 async def get_project(
     project_id: UUID,

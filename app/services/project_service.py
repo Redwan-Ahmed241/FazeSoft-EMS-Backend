@@ -96,6 +96,30 @@ class ProjectService:
         return list(result.scalars().all())
 
     @staticmethod
+    async def get_my_projects(current_user: User, db: AsyncSession) -> List[Project]:
+        """
+        Returns projects where current user is:
+        team member via team_member + project_teams tables OR manager_id === current_user.id
+        """
+        from app.models.team import ProjectTeam, TeamMember
+
+        member_projects_subquery = (
+            select(ProjectTeam.project_id)
+            .join(TeamMember, TeamMember.team_id == ProjectTeam.team_id)
+            .where(TeamMember.user_id == current_user.id)
+        )
+
+        result = await db.execute(
+            select(Project)
+            .where(
+                (Project.manager_id == current_user.id)
+                | (Project.project_id.in_(member_projects_subquery))
+            )
+            .order_by(Project.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def delete_project(
         db: AsyncSession,
         project_id: UUID,
