@@ -42,9 +42,14 @@ class UserOut(BaseModel):
     avatar: Optional[str] = None
     is_active: bool
     created_at: datetime
+    permissions: list[str] = []
 
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class RoleChangeRequest(BaseModel):
+    role_name: str
