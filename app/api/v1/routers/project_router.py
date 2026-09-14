@@ -11,7 +11,9 @@ from app.core.auth import get_current_user, require_role_and_permission
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectOut, ProjectListOut, ProjectUpdate
+from app.schemas.user import UserOut
 from app.services.project_service import ProjectService
+from app.services.auth_service import AuthService
 
 router = APIRouter(
     prefix="/projects",
@@ -20,6 +22,19 @@ router = APIRouter(
 )
 
 require_project_creator = require_role_and_permission("CTO", "create_project")
+
+
+@router.get("/managers", response_model=List[UserOut])
+async def list_project_managers(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all users who can be assigned as project managers (CTOs and Head of Operations)."""
+    managers = await ProjectService.get_eligible_managers(db)
+    out = []
+    for m in managers:
+        out.append(await AuthService.get_me(db, m))
+    return out
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
@@ -52,7 +67,7 @@ async def update_project(
     db: AsyncSession = Depends(get_db),
 ):
     """Update editable project fields."""
-    return await ProjectService.update_project(db, project_id, payload)
+    return await ProjectService.update_project(db, project_id, payload, current_user)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -66,6 +81,20 @@ async def delete_project(
     return None
 
 
+@router.get("/mine", response_model=List[ProjectOut])
+@router.get("/mine/", response_model=List[ProjectOut], include_in_schema=False)
+async def get_my_projects(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return projects where the current user is a team member
+    (via team_member + project_teams) or manager_id === current_user.id.
+    """
+    projects = await ProjectService.get_my_projects(current_user, db)
+    return [ProjectOut.model_validate(p) for p in projects]
+
+
 @router.get("/{project_id}", response_model=ProjectOut)
 async def get_project(
     project_id: UUID,
@@ -73,15 +102,4 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch a single project by ID."""
-    return await ProjectService.get_project_by_id(db, project_id)
-
-
-@router.put("/{project_id}", response_model=ProjectOut)
-async def update_project(
-    project_id: UUID,
-    payload: ProjectCreate,
-    current_user: User = Depends(require_project_creator),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update an existing project. Restricted to Admin users with create_project permission."""
-    return await ProjectService.update_project(db, project_id, payload, current_user)
+    return await ProjectService.get_project_by_id(db, project_id)

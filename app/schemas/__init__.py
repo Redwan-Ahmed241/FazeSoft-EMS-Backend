@@ -6,6 +6,7 @@ from app.schemas.candidate import (
     CandidateCreate, CandidateUpdate, CandidateStatusUpdate, CandidateOut
 )
 from app.schemas.interview import InterviewCreate, InterviewOut
+from app.schemas.note import NoteCreate, NoteUpdate, NoteListOut, NoteOut
 from app.schemas.notification import NotificationCreate, NotificationOut, NotificationUpdate
 from app.schemas.project import ProjectCreate, ProjectOut, ProjectListOut
 from app.schemas.client import ClientCreate, ClientOut
@@ -24,6 +25,10 @@ __all__ = [
     "ClientOut",
     "InterviewCreate",
     "InterviewOut",
+    "NoteCreate",
+    "NoteUpdate",
+    "NoteListOut",
+    "NoteOut",
     "NotificationCreate",
     "NotificationOut",
     "NotificationUpdate",

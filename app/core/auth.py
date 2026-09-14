@@ -18,7 +18,7 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -69,10 +69,16 @@ def decode_token(token: str) -> dict:
 # ─────────────────────────────────────────────────────────────
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ):
     """Validate Bearer token and return the current user from DB."""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     from app.models.user import User  # avoid circular import
 
     payload = decode_token(credentials.credentials)
@@ -133,17 +139,26 @@ def require_role_and_permission(role_name: str, permission_name: str):
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
     ) -> User:
+        clean_role = role_name.strip()
+        clean_perm = permission_name.strip()
+
+        # Check if user has the role (by name or role_desc, case-insensitive)
         role_result = await db.execute(
-            select(Role.role_desc)
+            select(Role.name, Role.role_desc)
             .join(UserRole, UserRole.role_id == Role.id)
-            .where(UserRole.user_id == current_user.id, Role.role_desc == role_name)
+            .where(
+                UserRole.user_id == current_user.id,
+                (Role.name.ilike(clean_role)) | (Role.role_desc.ilike(clean_role))
+            )
         )
-        if role_name not in {r for r in role_result.scalars().all() if r is not None}:
+        matched_role = role_result.first()
+        if not matched_role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Requires role: {role_name}.",
+                detail=f"Access denied. Requires role: {clean_role}.",
             )
 
+        # Check if role has the permission (with stripped whitespace)
         perm_result = await db.execute(
             select(Permission.perm_desc)
             .join(RolePermission, RolePermission.perm_id == Permission.id)
@@ -151,14 +166,14 @@ def require_role_and_permission(role_name: str, permission_name: str):
             .join(UserRole, UserRole.role_id == Role.id)
             .where(
                 UserRole.user_id == current_user.id,
-                Permission.perm_desc == permission_name,
-                Role.role_desc == role_name
+                (Role.name.ilike(clean_role)) | (Role.role_desc.ilike(clean_role))
             )
         )
-        if permission_name not in {p for p in perm_result.scalars().all() if p is not None}:
+        granted_perms = {p.strip() for p in perm_result.scalars().all() if p is not None}
+        if clean_perm not in granted_perms:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Requires permission: {permission_name}.",
+                detail=f"Access denied. Requires permission: {clean_perm}.",
             )
 
         return current_user

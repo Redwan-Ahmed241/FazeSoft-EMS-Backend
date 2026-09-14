@@ -20,10 +20,12 @@ else:
         DATABASE_URL,
         echo=False,
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
+        pool_recycle=300,
+        pool_size=15,
+        max_overflow=25,
         connect_args={
             "prepared_statement_cache_size": 0,  # Required for Supabase pgBouncer pooler
+            "command_timeout": 15,
         },
     )
 

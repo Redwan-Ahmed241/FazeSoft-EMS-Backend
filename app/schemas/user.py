@@ -33,6 +33,8 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     role: str
+    role_name: Optional[str] = None
+    role_desc: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
     job_title: Optional[str] = None
@@ -40,9 +42,14 @@ class UserOut(BaseModel):
     avatar: Optional[str] = None
     is_active: bool
     created_at: datetime
+    permissions: list[str] = []
 
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class RoleChangeRequest(BaseModel):
+    role_name: str

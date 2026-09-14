@@ -4,6 +4,7 @@ app/api/v1/routers/__init__.py — Package exports for API v1 routers.
 from app.api.v1.routers.auth_router import router as auth_router
 from app.api.v1.routers.candidate_router import router as candidate_router
 from app.api.v1.routers.interview_router import router as interview_router
+from app.api.v1.routers.note_router import router as note_router
 from app.api.v1.routers.notification_router import router as notification_router
 from app.api.v1.routers.resume_router import router as resume_router
 from app.api.v1.routers.project_router import router as project_router
@@ -17,6 +18,7 @@ __all__ = [
     "client_router",
     "email_router",
     "interview_router",
+    "note_router",
     "notification_router",
     "resume_router",
     "project_router",

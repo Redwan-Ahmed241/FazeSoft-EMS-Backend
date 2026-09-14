@@ -288,3 +288,272 @@ class EmailService:
             message="No SMTP credentials configured on backend. Use Gmail, Outlook, or client fallback.",
             recipient=request.to_email,
         )
+
+    @staticmethod
+    async def send_task_assignment_email(
+        recipient_email: str,
+        recipient_name: str,
+        task_title: str,
+        task_description: str,
+        project_name: str,
+        priority: str,
+        deadline: str,
+        assigned_by_name: str,
+        task_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Send an automated email notification when a task is assigned to a user.
+        Dispatches via Resend API or SMTP server with graceful fallback and logging.
+        """
+        try:
+            frontend_base = (settings.FRONTEND_URL or "http://localhost:3000").rstrip("/")
+            task_url = f"{frontend_base}/ems/dashboard/projects/{project_id}" if project_id else f"{frontend_base}/ems/dashboard/tasks"
+
+            html_content = _build_task_assignment_html_email(
+                recipient_email=recipient_email,
+                recipient_name=recipient_name,
+                task_title=task_title,
+                task_description=task_description,
+                project_name=project_name,
+                priority=priority,
+                deadline=deadline,
+                assigned_by_name=assigned_by_name,
+                task_url=task_url,
+            )
+
+            plain_text = (
+                f"Hello {recipient_name},\n\n"
+                f"You have been assigned a new task in project '{project_name}'.\n\n"
+                f"Task Title: {task_title}\n"
+                f"Project: {project_name}\n"
+                f"Priority: {priority}\n"
+                f"Deadline: {deadline}\n"
+                f"Assigned By: {assigned_by_name}\n\n"
+                f"Description:\n{task_description}\n\n"
+                f"View Task: {task_url}\n\n"
+                f"— FazeSoft EMS Automated Notification"
+            )
+
+            subject = f"[FazeSoft EMS] New Task Assigned: {task_title}"
+            from_name = "FazeSoft EMS"
+
+            # 1. Try Resend API if key is present
+            if settings.RESEND_API_KEY:
+                resend_from_email = settings.RESEND_FROM_EMAIL or "onboarding@resend.dev"
+                try:
+                    res = await asyncio.to_thread(
+                        _send_resend_api_sync,
+                        settings.RESEND_API_KEY,
+                        resend_from_email,
+                        from_name,
+                        recipient_email,
+                        subject,
+                        html_content,
+                    )
+                    email_id = res.get("id", "accepted") if isinstance(res, dict) else "accepted"
+                    logger.info("Task assignment email delivered via Resend to %s (Task: '%s', ID: %s)", recipient_email, task_title, email_id)
+                    return True
+                except Exception as e:
+                    logger.warning("Resend API delivery to %s failed: %s. Attempting SMTP if configured...", recipient_email, e)
+
+            # 2. Try SMTP if host is present
+            if settings.SMTP_HOST:
+                try:
+                    from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER or "no-reply@fazesoft.com"
+                    await asyncio.to_thread(
+                        _send_smtp_sync,
+                        settings.SMTP_HOST,
+                        settings.SMTP_PORT,
+                        settings.SMTP_USER,
+                        settings.SMTP_PASSWORD,
+                        from_email,
+                        from_name,
+                        recipient_email,
+                        subject,
+                        plain_text,
+                        html_content,
+                        settings.SMTP_TLS,
+                        settings.SMTP_SSL,
+                    )
+                    logger.info("Task assignment email delivered via SMTP to %s (Task: '%s')", recipient_email, task_title)
+                    return True
+                except Exception as e:
+                    logger.error("SMTP delivery to %s failed: %s", recipient_email, e)
+                    return False
+
+            if not settings.RESEND_API_KEY and not settings.SMTP_HOST:
+                logger.info("No email credentials configured; task notification to %s skipped.", recipient_email)
+            return False
+
+        except Exception as err:
+            logger.error("Unexpected error in send_task_assignment_email to %s: %s", recipient_email, err, exc_info=True)
+            return False
+
+
+def _build_task_assignment_html_email(
+    recipient_email: str,
+    recipient_name: str,
+    task_title: str,
+    task_description: str,
+    project_name: str,
+    priority: str,
+    deadline: str,
+    assigned_by_name: str,
+    task_url: str,
+) -> str:
+    """Build a modern, branded HTML email template for task assignment notifications."""
+    safe_recipient = html.escape(recipient_name or "Team Member")
+    safe_title = html.escape(task_title)
+    safe_project = html.escape(project_name)
+    safe_assigner = html.escape(assigned_by_name or "Project Lead")
+    safe_deadline = html.escape(deadline)
+
+    # Priority badge styling
+    p_upper = (priority or "Medium").strip().capitalize()
+    if p_upper == "High":
+        priority_bg = "#fee2e2"
+        priority_color = "#dc2626"
+        priority_border = "#fca5a5"
+    elif p_upper == "Low":
+        priority_bg = "#dcfce7"
+        priority_color = "#16a34a"
+        priority_border = "#86efac"
+    else:  # Medium
+        priority_bg = "#fef3c7"
+        priority_color = "#d97706"
+        priority_border = "#fcd34d"
+
+    # Format description paragraphs safely
+    escaped_desc = html.escape(task_description or "No additional description provided.")
+    paragraphs = [
+        f"<p style='margin: 0 0 12px 0; line-height: 1.6; color: #334155; font-size: 14px;'>{p.replace(chr(10), '<br/>')}</p>"
+        for p in escaped_desc.split("\n\n") if p.strip()
+    ]
+    description_html = "".join(paragraphs) if paragraphs else f"<p style='margin: 0; color: #64748b; font-size: 14px;'>{escaped_desc}</p>"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Task Assigned: {safe_title}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 36px 16px;">
+            <tr>
+                <td align="center">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.02); border: 1px solid #e2e8f0;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="padding: 26px 36px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-bottom: 3px solid #3b82f6;">
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td>
+                                            <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">
+                                                FAZESOFT <span style="color: #60a5fa; font-weight: 400;">EMS</span>
+                                            </h1>
+                                            <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600;">Project & Task Management</p>
+                                        </td>
+                                        <td align="right">
+                                            <span style="display: inline-block; background-color: rgba(59, 130, 246, 0.15); border: 1px solid rgba(96, 165, 250, 0.3); color: #93c5fd; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                                Task Assigned
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        <!-- Body Content -->
+                        <tr>
+                            <td style="padding: 32px 36px 24px 36px;">
+                                <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 19px; font-weight: 700;">
+                                    Hello, {safe_recipient} 👋
+                                </h2>
+                                <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px; line-height: 1.5;">
+                                    A new task has been assigned to you by <strong style="color: #0f172a;">{safe_assigner}</strong> in project <strong style="color: #2563eb;">{safe_project}</strong>.
+                                </p>
+
+                                <!-- Task Detail Card -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px;">
+                                    <tr>
+                                        <td style="padding: 20px 22px;">
+                                            <div style="margin-bottom: 14px;">
+                                                <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px;">Task Title</span>
+                                                <h3 style="margin: 4px 0 0 0; color: #0f172a; font-size: 17px; font-weight: 700;">
+                                                    {safe_title}
+                                                </h3>
+                                            </div>
+
+                                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top: 1px solid #e2e8f0; padding-top: 14px; font-size: 13px;">
+                                                <tr>
+                                                    <td style="padding: 4px 0; color: #64748b; width: 110px; font-weight: 600;">Project:</td>
+                                                    <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{safe_project}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 4px 0; color: #64748b; font-weight: 600;">Priority:</td>
+                                                    <td style="padding: 4px 0;">
+                                                        <span style="display: inline-block; background-color: {priority_bg}; color: {priority_color}; border: 1px solid {priority_border}; font-weight: 700; font-size: 11px; padding: 2px 10px; border-radius: 12px;">
+                                                            {p_upper}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 4px 0; color: #64748b; font-weight: 600;">Deadline:</td>
+                                                    <td style="padding: 4px 0; color: #b91c1c; font-weight: 700;">
+                                                        📅 {safe_deadline}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 4px 0; color: #64748b; font-weight: 600;">Assigned By:</td>
+                                                    <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{safe_assigner}</td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <!-- Task Description Block -->
+                                <div style="margin-bottom: 28px;">
+                                    <span style="display: block; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; margin-bottom: 8px;">
+                                        Description / Instructions
+                                    </span>
+                                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px;">
+                                        {description_html}
+                                    </div>
+                                </div>
+
+                                <!-- CTA Button -->
+                                <div style="text-align: center; margin: 32px 0 16px 0;">
+                                    <a href="{html.escape(task_url)}" target="_blank"
+                                       style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff; padding: 14px 34px; font-weight: 700; font-size: 14px; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); letter-spacing: 0.3px;">
+                                        🚀 View Task in Dashboard
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 22px 36px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+                                <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #64748b;">
+                                    FazeSoft Enterprise Management System
+                                </p>
+                                <p style="margin: 0 0 10px 0; font-size: 11px; color: #94a3b8;">
+                                    Automated task dispatch notification &middot; Please do not reply directly to this email
+                                </p>
+                                <p style="margin: 0; font-size: 11px; color: #cbd5e1; line-height: 1.4;">
+                                    You received this message because a task was assigned to your account ({html.escape(recipient_email)}).
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """.strip()
+

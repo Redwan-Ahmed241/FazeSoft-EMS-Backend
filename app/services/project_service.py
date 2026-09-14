@@ -1,7 +1,7 @@
 """
 app/services/project_service.py — Business logic for project operations.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -36,7 +36,7 @@ class ProjectService:
             # A new project starts as "Planned"; it moves to "In Progress" once a
             # team is assigned to it (see TeamService.assign_team_to_project).
             status=ProjectStatus.Planned,
-            manager_id=current_user.id,
+            manager_id=payload.manager_id or current_user.id,
             client_id=payload.client_id,
             start_date=payload.start_date,
             end_date=payload.end_date,
@@ -47,11 +47,32 @@ class ProjectService:
         return project
 
     @staticmethod
+    async def get_eligible_managers(db: AsyncSession) -> list[User]:
+        """Return users with CTO or Head_of_Operations roles who are eligible to be project managers."""
+        from app.models.role_permission import Role, UserRole
+        result = await db.execute(
+            select(User)
+            .join(UserRole, UserRole.user_id == User.id)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(
+                User.deleted_at.is_(None),
+                User.banned_until.is_(None),
+                (Role.name.in_(["CTO", "Head_of_Operations"])) |
+                (Role.role_desc.in_(["Chief Technology Officer", "Head of Operations"]))
+            )
+            .distinct()
+            .order_by(User.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def update_project(
         db: AsyncSession,
         project_id: UUID,
         payload: ProjectUpdate,
+        current_user: Optional[User] = None,
     ) -> Project:
+        _ = current_user
         result = await db.execute(
             select(Project).where(Project.project_id == project_id)
         )
@@ -63,6 +84,19 @@ class ProjectService:
             )
 
         updates = payload.model_dump(exclude_unset=True)
+        if "project_code" in updates and updates["project_code"] != project.project_code:
+            existing = await db.execute(
+                select(Project).where(
+                    Project.project_code == updates["project_code"],
+                    Project.project_id != project_id,
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Project with code '{updates['project_code']}' already exists.",
+                )
+
         for field, value in updates.items():
             setattr(project, field, value)
         await db.commit()
@@ -73,6 +107,30 @@ class ProjectService:
     async def get_all_projects(db: AsyncSession) -> List[Project]:
         result = await db.execute(
             select(Project).order_by(Project.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_my_projects(current_user: User, db: AsyncSession) -> List[Project]:
+        """
+        Returns projects where current user is:
+        team member via team_member + project_teams tables OR manager_id === current_user.id
+        """
+        from app.models.team import ProjectTeam, TeamMember
+
+        member_projects_subquery = (
+            select(ProjectTeam.project_id)
+            .join(TeamMember, TeamMember.team_id == ProjectTeam.team_id)
+            .where(TeamMember.user_id == current_user.id)
+        )
+
+        result = await db.execute(
+            select(Project)
+            .where(
+                (Project.manager_id == current_user.id)
+                | (Project.project_id.in_(member_projects_subquery))
+            )
+            .order_by(Project.created_at.desc())
         )
         return list(result.scalars().all())
 
@@ -110,38 +168,4 @@ class ProjectService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Project with id={project_id} not found.",
             )
-        return project
-
-    @staticmethod
-    async def update_project(
-        db: AsyncSession,
-        project_id: UUID,
-        payload: ProjectCreate,
-        current_user: User,
-    ) -> Project:
-        project = await ProjectService.get_project_by_id(db, project_id)
-
-        if payload.project_code != project.project_code:
-            existing = await db.execute(
-                select(Project).where(
-                    Project.project_code == payload.project_code,
-                    Project.project_id != project_id,
-                )
-            )
-            if existing.scalar_one_or_none():
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Project with code '{payload.project_code}' already exists.",
-                )
-            project.project_code = payload.project_code
-
-        project.project_name = payload.project_name
-        project.description = payload.description
-        project.status = ProjectService._resolve_status(payload)
-        project.client_id = payload.client_id
-        project.start_date = payload.start_date
-        project.end_date = payload.end_date
-
-        await db.commit()
-        await db.refresh(project)
         return project

@@ -4,7 +4,7 @@ app/api/v1/routers/task_router.py — Task management endpoints.
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,6 +66,7 @@ def require_permission(permission_name: str):
 async def create_task(
     project_id: UUID,
     payload: TaskCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_permission("assign_task")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -75,6 +76,7 @@ async def create_task(
         data=payload,
         current_user=current_user,
         db=db,
+        background_tasks=background_tasks,
     )
 
 
@@ -137,6 +139,7 @@ async def update_task(
     project_id: UUID,
     task_id: UUID,
     payload: TaskUpdate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -186,4 +189,5 @@ async def update_task(
         data=payload,
         db=db,
         current_user=current_user,
+        background_tasks=background_tasks,
     )

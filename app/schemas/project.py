@@ -12,6 +12,7 @@ class ProjectCreate(BaseModel):
     project_code: str
     description: str
     client_id: UUID
+    manager_id: Optional[UUID] = None
     start_date: date
     end_date: date
 
@@ -21,6 +22,7 @@ class ProjectUpdate(BaseModel):
     project_code: Optional[str] = None
     description: Optional[str] = None
     client_id: Optional[UUID] = None
+    manager_id: Optional[UUID] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
 
