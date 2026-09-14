@@ -4,8 +4,16 @@ app/main.py — FastAPI application entry point for HireMate backend.
 Run with:
     uvicorn app.main:app --reload --port 8000
 """
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    force=True,
+)
 
 from app.core.config import settings
 from app.api.v1 import api_v1_router
@@ -15,6 +23,7 @@ from app.api.v1.routers import (
     client_router,
     email_router,
     interview_router,
+    note_router,
     notification_router,
     resume_router,
     project_router,
@@ -67,6 +76,7 @@ app.include_router(candidate_router, prefix="/api")
 app.include_router(client_router, prefix="/api")
 app.include_router(email_router, prefix="/api")
 app.include_router(interview_router, prefix="/api")
+app.include_router(note_router, prefix="/api")
 app.include_router(notification_router, prefix="/api")
 app.include_router(resume_router, prefix="/api")
 app.include_router(project_router, prefix="/api")
@@ -84,3 +94,5 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health():
     return {"status": "healthy"}
+
+

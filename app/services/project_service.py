@@ -1,7 +1,7 @@
 """
 app/services/project_service.py — Business logic for project operations.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -70,7 +70,9 @@ class ProjectService:
         db: AsyncSession,
         project_id: UUID,
         payload: ProjectUpdate,
+        current_user: Optional[User] = None,
     ) -> Project:
+        _ = current_user
         result = await db.execute(
             select(Project).where(Project.project_id == project_id)
         )
@@ -82,6 +84,19 @@ class ProjectService:
             )
 
         updates = payload.model_dump(exclude_unset=True)
+        if "project_code" in updates and updates["project_code"] != project.project_code:
+            existing = await db.execute(
+                select(Project).where(
+                    Project.project_code == updates["project_code"],
+                    Project.project_id != project_id,
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Project with code '{updates['project_code']}' already exists.",
+                )
+
         for field, value in updates.items():
             setattr(project, field, value)
         await db.commit()
@@ -153,38 +168,4 @@ class ProjectService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Project with id={project_id} not found.",
             )
-        return project
-
-    @staticmethod
-    async def update_project(
-        db: AsyncSession,
-        project_id: UUID,
-        payload: ProjectCreate,
-        current_user: User,
-    ) -> Project:
-        project = await ProjectService.get_project_by_id(db, project_id)
-
-        if payload.project_code != project.project_code:
-            existing = await db.execute(
-                select(Project).where(
-                    Project.project_code == payload.project_code,
-                    Project.project_id != project_id,
-                )
-            )
-            if existing.scalar_one_or_none():
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Project with code '{payload.project_code}' already exists.",
-                )
-            project.project_code = payload.project_code
-
-        project.project_name = payload.project_name
-        project.description = payload.description
-        project.status = ProjectService._resolve_status(payload)
-        project.client_id = payload.client_id
-        project.start_date = payload.start_date
-        project.end_date = payload.end_date
-
-        await db.commit()
-        await db.refresh(project)
         return project

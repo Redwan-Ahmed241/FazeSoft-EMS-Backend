@@ -8,6 +8,7 @@ from app.api.v1.routers import (
     candidate_router,
     client_router,
     interview_router,
+    note_router,
     notification_router,
     resume_router,
     project_router,
@@ -21,6 +22,7 @@ api_v1_router.include_router(candidate_router)
 api_v1_router.include_router(client_router)
 api_v1_router.include_router(email_router)
 api_v1_router.include_router(interview_router)
+api_v1_router.include_router(note_router)
 api_v1_router.include_router(notification_router)
 api_v1_router.include_router(resume_router)
 api_v1_router.include_router(project_router)

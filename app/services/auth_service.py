@@ -130,10 +130,44 @@ class AuthService:
             .order_by(User.created_at.desc())
         )
         users = result.scalars().all()
+        if not users:
+            return []
+
+        user_ids = [u.id for u in users]
+
+        # Bulk query roles for all users
+        role_stmt = (
+            select(UserRole.user_id, Role.name, Role.role_desc)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(UserRole.user_id.in_(user_ids))
+        )
+        role_rows = (await db.execute(role_stmt)).all()
+        user_roles = {r[0]: (r[1], r[2]) for r in role_rows}
+
+        # Bulk query permissions for all users
+        perm_stmt = (
+            select(UserRole.user_id, Permission.perm_desc)
+            .join(Role, Role.id == UserRole.role_id)
+            .join(RolePermission, RolePermission.role_id == Role.id)
+            .join(Permission, Permission.id == RolePermission.perm_id)
+            .where(UserRole.user_id.in_(user_ids))
+        )
+        perm_rows = (await db.execute(perm_stmt)).all()
+        user_perms: dict[UUID, list[str]] = {}
+        for uid, pdesc in perm_rows:
+            if pdesc:
+                user_perms.setdefault(uid, []).append(pdesc.strip())
+
         out = []
         for u in users:
-            role = await _resolve_rbac_role(db, u.id)
-            out.append(_user_out(u, role))
+            role_data = user_roles.get(u.id)
+            if role_data:
+                r_name, r_desc = role_data
+                role_str = r_name or r_desc or "Candidate"
+            else:
+                role_str, r_name, r_desc = "Candidate", "Candidate", "Candidate"
+            perms = user_perms.get(u.id, [])
+            out.append(_user_out(u, (role_str, r_name, r_desc, perms)))
         return out
 
     @staticmethod

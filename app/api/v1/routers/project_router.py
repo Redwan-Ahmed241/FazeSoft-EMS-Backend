@@ -67,7 +67,7 @@ async def update_project(
     db: AsyncSession = Depends(get_db),
 ):
     """Update editable project fields."""
-    return await ProjectService.update_project(db, project_id, payload)
+    return await ProjectService.update_project(db, project_id, payload, current_user)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -102,15 +102,4 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch a single project by ID."""
-    return await ProjectService.get_project_by_id(db, project_id)
-
-
-@router.put("/{project_id}", response_model=ProjectOut)
-async def update_project(
-    project_id: UUID,
-    payload: ProjectCreate,
-    current_user: User = Depends(require_project_creator),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update an existing project. Restricted to Admin users with create_project permission."""
-    return await ProjectService.update_project(db, project_id, payload, current_user)
+    return await ProjectService.get_project_by_id(db, project_id)
