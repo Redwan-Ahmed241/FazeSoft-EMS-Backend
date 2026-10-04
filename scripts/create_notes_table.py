@@ -24,6 +24,8 @@ async def create_notes_table():
             CREATE TABLE IF NOT EXISTS public.notes (
                 note_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+                parent_id uuid REFERENCES public.notes(note_id) ON DELETE CASCADE,
+                order_index integer NOT NULL DEFAULT 0,
                 title varchar(255) NOT NULL,
                 content text NOT NULL DEFAULT '',
                 created_at timestamptz NOT NULL DEFAULT now(),
@@ -33,6 +35,10 @@ async def create_notes_table():
 
         await conn.execute(text("""
             CREATE INDEX IF NOT EXISTS ix_notes_user_id ON public.notes (user_id);
+        """))
+
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_notes_parent_id ON public.notes (parent_id);
         """))
 
     print("notes table is ready.")
