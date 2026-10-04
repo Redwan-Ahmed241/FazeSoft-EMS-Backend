@@ -1,9 +1,10 @@
 """
 app/models/note.py — SQLAlchemy ORM Note model for the per-user Notepad.
+Supports hierarchical sections and subsections.
 """
 import uuid
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, func
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -20,6 +21,13 @@ class Note(Base):
         nullable=False,
         index=True,
     )
+    parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("notes.note_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    order_index = Column(Integer, default=0, server_default="0", nullable=False)
     title = Column(String(255), nullable=False)
     content = Column(Text, default="", server_default="", nullable=False)
     created_at = Column(
@@ -33,3 +41,6 @@ class Note(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    # Subsections are attached explicitly via service queries to prevent async lazy-load issues
+    subsections = []
